@@ -2,12 +2,23 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import duckdb
+from huggingface_hub import HfFileSystem
 
 app = FastAPI()
+
+# ✅ Bucket ke liye HfFileSystem register karo
+duckdb.register_filesystem(HfFileSystem())
 
 con = duckdb.connect()
 con.execute("INSTALL httpfs;")
 con.execute("LOAD httpfs;")
+
+# ✅ HuggingFace Token (hardcoded)
+HF_TOKEN = "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"
+con.execute(f"CREATE SECRET hf_token (TYPE HUGGINGFACE, TOKEN '{HF_TOKEN}');")
+
+# SSL workaround
+con.execute("SET enable_server_cert_verification = false;")
 
 LANDING_PAGE_HTML = """
 <!DOCTYPE html>
@@ -48,16 +59,13 @@ LANDING_PAGE_HTML = """
             <span class="blinking" style="color: #00ffcc;">●</span> HTTP 200 OK - LISTENING FOR QUERIES
         </div>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
-
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
         for (let i = 0; i < 8000; i++) {
@@ -65,14 +73,11 @@ LANDING_PAGE_HTML = """
             vertices.push(THREE.MathUtils.randFloatSpread(3000));
             vertices.push(THREE.MathUtils.randFloatSpread(3000));
         }
-        
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         const material = new THREE.PointsMaterial({ color: 0x00ffcc, size: 2.5, transparent: true, opacity: 0.8 });
         const points = new THREE.Points(geometry, material);
         scene.add(points);
-
         camera.position.z = 1200;
-
         function animate() {
             requestAnimationFrame(animate);
             points.rotation.x += 0.0005;
@@ -80,7 +85,6 @@ LANDING_PAGE_HTML = """
             renderer.render(scene, camera);
         }
         animate();
-
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -99,12 +103,12 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             content={
                 "status": "rejected",
                 "message": "Invalid endpoint. STRICTLY use /FetchData?Number=XXXXXXXXXX",
-                "Developer": "@Maybechx"
+                "Developer": "@Oriss01"
             }
         )
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail, "Developer": "@Maybechx"}
+        content={"detail": exc.detail, "Developer": "@Oriss01"}
     )
 
 @app.get("/", response_class=HTMLResponse)
@@ -119,14 +123,15 @@ def fetch_data(Number: str = Query(None)):
             content={
                 "status": "rejected",
                 "message": "Invalid parameter. STRICTLY use /FetchData?Number=XXXXXXXXXX",
-                "Developer": "@Maybechx"
+                "Developer": "@Oriss01"
             }
         )
     
     last_digit = Number[-1]
     
-    primary_url = f"https://huggingface.co/datasets/CutehackX/hitek-data-bucket/resolve/main/final_master_shard_{last_digit}.parquet"
-    alt_url = f"https://huggingface.co/datasets/CutehackX/hitek-data-bucket/resolve/main/alt_master_shard_{last_digit}.parquet"
+    # ✅ Bucket ka sahi URL format
+    primary_url = f"hf://buckets/CutehackX/hitek-data-bucket/final_master_shard_{last_digit}.parquet"
+    alt_url = f"hf://buckets/CutehackX/hitek-data-bucket/alt_master_shard_{last_digit}.parquet"
     
     try:
         query = f"""
@@ -174,5 +179,4 @@ def fetch_data(Number: str = Query(None)):
                 "message": f"Database processing error: {str(e)}",
                 "Developer": "@Oriss01"
             }
-      )
-              
+        )
