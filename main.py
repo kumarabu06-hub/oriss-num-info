@@ -153,7 +153,7 @@ def fetch_data(Number: str = Query(None)):
                 content={
                     "status": "not_found", 
                     "phone": Number,
-                    "Developer": "@Maybechx"
+                    "Developer": "@Oriss01"
                 }
             )
             
@@ -163,7 +163,7 @@ def fetch_data(Number: str = Query(None)):
                 "Main_Records": main_records,
                 "Alt_Records": alt_records
             },
-            "Developer": "@Maybechx"
+            "Developer": "@Oriss01"
         }
         
     except Exception as e:
@@ -172,7 +172,7 @@ def fetch_data(Number: str = Query(None)):
             content={
                 "status": "error",
                 "message": f"Database processing error: {str(e)}",
-                "Developer": "@Maybechx"
+                "Developer": "@Oriss01"
             }
       )
               
