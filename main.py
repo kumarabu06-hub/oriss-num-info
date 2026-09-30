@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from huggingface_hub import HfFileSystem
 import duckdb
 
 app = FastAPI()
@@ -8,6 +9,9 @@ app = FastAPI()
 con = duckdb.connect()
 con.execute("INSTALL httpfs;")
 con.execute("LOAD httpfs;")
+
+# ✅ Hugging Face file system register karo (hf:// protocol ke liye zaroori)
+duckdb.register_filesystem(HfFileSystem())
 
 LANDING_PAGE_HTML = """
 <!DOCTYPE html>
@@ -125,9 +129,9 @@ def fetch_data(Number: str = Query(None)):
     
     last_digit = Number[-1]
     
-    # ✅ REPLACED: Naya Hugging Face Bucket URL format
-    primary_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/final_master_shard_{last_digit}.parquet"
-    alt_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/alt_master_shard_{last_digit}.parquet"
+    # ✅ hf:// protocol use karo (https:// nahi)
+    primary_url = f"hf://buckets/CutehackX/hitek-data-bucket/final_master_shard_{last_digit}.parquet"
+    alt_url = f"hf://buckets/CutehackX/hitek-data-bucket/alt_master_shard_{last_digit}.parquet"
     
     try:
         query = f"""
@@ -154,7 +158,7 @@ def fetch_data(Number: str = Query(None)):
                 content={
                     "status": "not_found", 
                     "phone": Number,
-                    "Developer": "By @Oriss01"
+                    "Developer": "@Oriss01"
                 }
             )
             
@@ -164,7 +168,7 @@ def fetch_data(Number: str = Query(None)):
                 "Main_Records": main_records,
                 "Alt_Records": alt_records
             },
-            "Developer": "By @Oriss01"
+            "Developer": "@Oriss01"
         }
         
     except Exception as e:
@@ -173,6 +177,6 @@ def fetch_data(Number: str = Query(None)):
             content={
                 "status": "error",
                 "message": f"Database processing error: {str(e)}",
-                "Developer": "By @Oriss01"
+                "Developer": "@Oriss01"
             }
         )
