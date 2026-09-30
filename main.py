@@ -1,10 +1,7 @@
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from huggingface_hub import download_bucket_files
 import duckdb
-import os
-import tempfile
 
 app = FastAPI()
 
@@ -102,12 +99,12 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             content={
                 "status": "rejected",
                 "message": "Invalid endpoint. STRICTLY use /FetchData?Number=XXXXXXXXXX",
-                "Developer": "@Oriss01"
+                "Developer": "@Maybechx"
             }
         )
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail, "Developer": "@Oriss01"}
+        content={"detail": exc.detail, "Developer": "@Maybechx"}
     )
 
 @app.get("/", response_class=HTMLResponse)
@@ -122,38 +119,20 @@ def fetch_data(Number: str = Query(None)):
             content={
                 "status": "rejected",
                 "message": "Invalid parameter. STRICTLY use /FetchData?Number=XXXXXXXXXX",
-                "Developer": "@Oriss01"
+                "Developer": "@Maybechx"
             }
         )
     
     last_digit = Number[-1]
     
+    primary_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/final_master_shard_{last_digit}.parquet"
+    alt_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/alt_master_shard_{last_digit}.parquet"
+    
     try:
-        # ✅ Bucket se files download karne ke liye sahi function
-        bucket_id = "CutehackX/hitek-data-bucket"
-        
-        # Temporary directory banao
-        tmpdir = tempfile.mkdtemp()
-        primary_local = os.path.join(tmpdir, f"final_master_shard_{last_digit}.parquet")
-        alt_local = os.path.join(tmpdir, f"alt_master_shard_{last_digit}.parquet")
-        
-        # download_bucket_files use karo (repo_type ki zaroorat nahi)
-        download_bucket_files(
-            bucket_id=bucket_id,
-            files=[
-                (f"final_master_shard_{last_digit}.parquet", primary_local),
-                (f"alt_master_shard_{last_digit}.parquet", alt_local),
-            ],
-        )
-        
-        # Local paths ko forward slash mein convert karo (Windows issue)
-        primary_local = primary_local.replace("\\", "/")
-        alt_local = alt_local.replace("\\", "/")
-        
         query = f"""
-            SELECT *, 'Main' AS _record_type FROM read_parquet('{primary_local}') WHERE mobile = '{Number}'
+            SELECT *, 'Main' AS _record_type FROM read_parquet('{primary_url}') WHERE mobile = '{Number}'
             UNION ALL
-            SELECT *, 'Alt' AS _record_type FROM read_parquet('{alt_local}') WHERE alt = '{Number}'
+            SELECT *, 'Alt' AS _record_type FROM read_parquet('{alt_url}') WHERE alt = '{Number}'
         """
         
         raw_results = con.execute(query).df().to_dict(orient="records")
@@ -167,14 +146,6 @@ def fetch_data(Number: str = Query(None)):
                 main_records.append(row)
             else:
                 alt_records.append(row)
-        
-        # Cleanup: temporary files delete karo
-        try:
-            os.remove(primary_local)
-            os.remove(alt_local)
-            os.rmdir(tmpdir)
-        except:
-            pass
         
         if not main_records and not alt_records:
             return JSONResponse(
@@ -201,6 +172,6 @@ def fetch_data(Number: str = Query(None)):
             content={
                 "status": "error",
                 "message": f"Database processing error: {str(e)}",
-                "Developer": "@Oriss01"
+                "Developer": "@Oriss01 Try again"
             }
         )
