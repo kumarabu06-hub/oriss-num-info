@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from huggingface_hub import hf_hub_download
 import duckdb
+import os
 
 app = FastAPI()
 
@@ -125,15 +127,28 @@ def fetch_data(Number: str = Query(None)):
     
     last_digit = Number[-1]
     
-    # ✅ SAHI URL: Hugging Face bucket ka direct HTTPS resolve link
-    primary_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/final_master_shard_{last_digit}.parquet"
-    alt_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/alt_master_shard_{last_digit}.parquet"
-    
     try:
+        # ✅ Hugging Face Hub se bucket files download karo
+        # repo_type="bucket" use karna zaroori hai
+        primary_path = hf_hub_download(
+            repo_id="CutehackX/hitek-data-bucket",
+            filename=f"final_master_shard_{last_digit}.parquet",
+            repo_type="bucket"
+        )
+        alt_path = hf_hub_download(
+            repo_id="CutehackX/hitek-data-bucket",
+            filename=f"alt_master_shard_{last_digit}.parquet",
+            repo_type="bucket"
+        )
+        
+        # Windows path issue fix (backslash ko forward slash karo)
+        primary_path = primary_path.replace("\\", "/")
+        alt_path = alt_path.replace("\\", "/")
+        
         query = f"""
-            SELECT *, 'Main' AS _record_type FROM read_parquet('{primary_url}') WHERE mobile = '{Number}'
+            SELECT *, 'Main' AS _record_type FROM read_parquet('{primary_path}') WHERE mobile = '{Number}'
             UNION ALL
-            SELECT *, 'Alt' AS _record_type FROM read_parquet('{alt_url}') WHERE alt = '{Number}'
+            SELECT *, 'Alt' AS _record_type FROM read_parquet('{alt_path}') WHERE alt = '{Number}'
         """
         
         raw_results = con.execute(query).df().to_dict(orient="records")
