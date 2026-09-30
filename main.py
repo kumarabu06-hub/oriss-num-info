@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from huggingface_hub import HfFileSystem
 import duckdb
 
 app = FastAPI()
@@ -9,9 +8,6 @@ app = FastAPI()
 con = duckdb.connect()
 con.execute("INSTALL httpfs;")
 con.execute("LOAD httpfs;")
-
-# ✅ Hugging Face file system register karo (hf:// protocol ke liye zaroori)
-duckdb.register_filesystem(HfFileSystem())
 
 LANDING_PAGE_HTML = """
 <!DOCTYPE html>
@@ -103,12 +99,12 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             content={
                 "status": "rejected",
                 "message": "Invalid endpoint. STRICTLY use /FetchData?Number=XXXXXXXXXX",
-                "Developer": "@Maybechx"
+                "Developer": "@Oriss01"
             }
         )
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail, "Developer": "@Maybechx"}
+        content={"detail": exc.detail, "Developer": "@Oriss01"}
     )
 
 @app.get("/", response_class=HTMLResponse)
@@ -123,15 +119,15 @@ def fetch_data(Number: str = Query(None)):
             content={
                 "status": "rejected",
                 "message": "Invalid parameter. STRICTLY use /FetchData?Number=XXXXXXXXXX",
-                "Developer": "@Maybechx"
+                "Developer": "@Oriss01"
             }
         )
     
     last_digit = Number[-1]
     
-    # ✅ hf:// protocol use karo (https:// nahi)
-    primary_url = f"hf://buckets/CutehackX/hitek-data-bucket/final_master_shard_{last_digit}.parquet"
-    alt_url = f"hf://buckets/CutehackX/hitek-data-bucket/alt_master_shard_{last_digit}.parquet"
+    # ✅ SAHI URL: Hugging Face bucket ka direct HTTPS resolve link
+    primary_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/final_master_shard_{last_digit}.parquet"
+    alt_url = f"https://huggingface.co/buckets/CutehackX/hitek-data-bucket/resolve/alt_master_shard_{last_digit}.parquet"
     
     try:
         query = f"""
